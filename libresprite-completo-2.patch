@@ -1,0 +1,990 @@
+diff -ruN a/data/gui.xml b/data/gui.xml
+--- a/data/gui.xml	2026-10-01 20:47:37.000000000 +0000
++++ b/data/gui.xml	2026-10-07 15:51:42.871913310 +0000
+@@ -783,6 +783,8 @@
+           <param name="switch" value="true" />
+         </item>
+         <item command="AlternateTimeline" text="Alternate Timeline" />
++        <item command="MorePanel" text="More Functions" />
++        <item command="TogglePanelDock" text="Side Panel" />
+         <item command="ToggleTouchbar" text="Touchbar" />
+         <item command="AlternateTouchbar" text="Alternate Touchbar" />
+         <item command="TogglePreview" text="Previe&amp;w" />
+diff -ruN a/data/pref.xml b/data/pref.xml
+--- a/data/pref.xml	2026-10-01 20:47:37.000000000 +0000
++++ b/data/pref.xml	2026-10-07 15:51:42.872047706 +0000
+@@ -135,7 +135,7 @@
+       <option id="flash_layer" type="bool" default="false" migrate="Options.FlashLayer" />
+     </section>
+     <section id="touch_bar" text="Touchbar">
+-      <option id="visible" type="bool" default="false" />
++      <option id="visible" type="bool" default="true" />
+       <option id="alternate_position" type="bool" default="false" />
+     </section>
+     <section id="status_bar">
+diff -ruN a/src/app/CMakeLists.txt b/src/app/CMakeLists.txt
+--- a/src/app/CMakeLists.txt	2026-10-01 20:47:37.000000000 +0000
++++ b/src/app/CMakeLists.txt	2026-10-07 15:51:42.816984142 +0000
+@@ -278,6 +278,8 @@
+   commands/cmd_timeline.cpp
+   commands/cmd_toggle_fullscreen.cpp
+   commands/cmd_toggle_preview.cpp
++  commands/cmd_more_panel.cpp
++  commands/cmd_toggle_panel_dock.cpp
+   commands/cmd_toggle_touchbar.cpp
+   commands/cmd_undo.cpp
+   commands/cmd_undo_history.cpp
+@@ -384,6 +386,9 @@
+   ui/brush_popup.cpp
+   ui/button_set.cpp
+   ui/color_bar.cpp
++  ui/more_panel.cpp
++  ui/panel_dock.cpp
++  ui/reference_panel.cpp
+   ui/touch_bar.cpp
+   ui/color_button.cpp
+   ui/color_popup.cpp
+diff -ruN a/src/app/commands/cmd_more_panel.cpp b/src/app/commands/cmd_more_panel.cpp
+--- a/src/app/commands/cmd_more_panel.cpp	1970-01-01 00:00:00.000000000 +0000
++++ b/src/app/commands/cmd_more_panel.cpp	2026-10-07 15:51:42.837355720 +0000
+@@ -0,0 +1,39 @@
++// LibreSprite | Comando "MorePanel": abre el panel táctil "Más funciones"
++//
++// This file is released under the terms of the MIT license.
++// Read LICENSE.txt for more information.
++
++#ifdef HAVE_CONFIG_H
++#include "config.h"
++#endif
++
++#include "app/commands/command.h"
++#include "app/commands/params.h"
++#include "app/ui/more_panel.h"
++
++namespace app {
++
++  class MorePanelCommand : public Command {
++  public:
++    Command* clone() const override { return new MorePanelCommand(*this); }
++
++    MorePanelCommand()
++      : Command{"MorePanel", "More Functions", CmdUIOnlyFlag}
++      {}
++
++  protected:
++    void onLoadParams(const Params& params) override {}
++
++    bool onEnabled(Context* context) override { return true; }
++
++    void onExecute(Context* context) override {
++      show_more_panel();
++    }
++  };
++
++  Command* CommandFactory::createMorePanelCommand()
++  {
++    return new MorePanelCommand;
++  }
++
++} // namespace app
+diff -ruN a/src/app/commands/cmd_toggle_panel_dock.cpp b/src/app/commands/cmd_toggle_panel_dock.cpp
+--- a/src/app/commands/cmd_toggle_panel_dock.cpp	1970-01-01 00:00:00.000000000 +0000
++++ b/src/app/commands/cmd_toggle_panel_dock.cpp	2026-10-07 15:51:42.837370488 +0000
+@@ -0,0 +1,40 @@
++// LibreSprite | Comando "TogglePanelDock": oculta/muestra el panel lateral
++//
++// This file is released under the terms of the MIT license.
++// Read LICENSE.txt for more information.
++
++#ifdef HAVE_CONFIG_H
++#include "config.h"
++#endif
++
++#include "app/app.h"
++#include "app/commands/command.h"
++#include "app/commands/params.h"
++#include "app/ui/main_window.h"
++
++namespace app {
++
++  class TogglePanelDockCommand : public Command {
++  public:
++    Command* clone() const override { return new TogglePanelDockCommand(*this); }
++
++    TogglePanelDockCommand()
++      : Command{"TogglePanelDock", "Toggle Side Panel", CmdUIOnlyFlag}
++      {}
++
++  protected:
++    void onLoadParams(const Params& params) override {}
++
++    bool onEnabled(Context* context) override { return true; }
++
++    void onExecute(Context* context) override {
++      App::instance()->mainWindow()->togglePanelDock();
++    }
++  };
++
++  Command* CommandFactory::createTogglePanelDockCommand()
++  {
++    return new TogglePanelDockCommand;
++  }
++
++} // namespace app
+diff -ruN a/src/app/commands/commands_list.h b/src/app/commands/commands_list.h
+--- a/src/app/commands/commands_list.h	2026-10-01 20:47:37.000000000 +0000
++++ b/src/app/commands/commands_list.h	2026-10-07 15:51:42.836048755 +0000
+@@ -143,6 +143,8 @@
+ FOR_EACH_COMMAND(ToggleFullscreen)
+ FOR_EACH_COMMAND(TogglePreview)
+ FOR_EACH_COMMAND(ToggleTouchbar)
++FOR_EACH_COMMAND(MorePanel)
++FOR_EACH_COMMAND(TogglePanelDock)
+ FOR_EACH_COMMAND(Undo)
+ FOR_EACH_COMMAND(UndoHistory)
+ FOR_EACH_COMMAND(UnlinkCel)
+diff -ruN a/src/app/ui/main_window.cpp b/src/app/ui/main_window.cpp
+--- a/src/app/ui/main_window.cpp	2026-10-01 20:47:37.000000000 +0000
++++ b/src/app/ui/main_window.cpp	2026-10-07 15:51:42.862810110 +0000
+@@ -27,6 +27,9 @@
+ #include "app/ui/home_view.h"
+ #include "app/ui/main_menu_bar.h"
+ #include "app/ui/notifications.h"
++#include "app/ui/panel_dock.h"
++#include "app/ui/recent_listbox.h"
++#include "app/ui/reference_panel.h"
+ #include "app/ui/preview_editor.h"
+ #include "app/ui/skin/skin_property.h"
+ #include "app/ui/skin/skin_theme.h"
+@@ -92,7 +95,19 @@
+   menuBarPlaceholder()->addChild(m_menuBar);
+   menuBarPlaceholder()->addChild(m_notifications);
+   contextBarPlaceholder()->addChild(m_contextBar);
+-  colorBarPlaceholder()->addChild(m_colorBar);
++
++  // Panel con pestañas reordenables: Paleta | Galería | Referencia.
++  m_panelDock = new PanelDock();
++  m_panelDock->setExpansive(true);
++  m_panelDock->addPanel("Paleta", m_colorBar);
++
++  auto* galleryView = new View();
++  galleryView->attachToView(new RecentFilesListBox());
++  galleryView->setExpansive(true);
++  m_panelDock->addPanel("Galería", galleryView);
++
++  m_panelDock->addPanel("Referencia", new ReferencePanel());
++  colorBarPlaceholder()->addChild(m_panelDock);
+ 
+   touchbarParent->addChild(m_touchBar.get());
+ 
+@@ -431,6 +446,13 @@
+     return DropTabResult::NOT_HANDLED;
+ }
+ 
++// Oculta o muestra todo el panel lateral (paleta, galería, referencia).
++void MainWindow::togglePanelDock()
++{
++  m_panelDockHidden = !m_panelDockHidden;
++  configureWorkspaceLayout();
++}
++
+ void MainWindow::configureWorkspaceLayout()
+ {
+   bool normal = (m_mode == NormalMode);
+@@ -438,7 +460,7 @@
+ 
+   m_menuBar->setVisible(normal);
+   m_tabsBar->setVisible(normal);
+-  colorBarPlaceholder()->setVisible(normal && isDoc);
++  colorBarPlaceholder()->setVisible(normal && isDoc && !m_panelDockHidden);
+   m_touchBar->setVisible(normal && isDoc && Preferences::instance().touchBar.visible());
+   m_toolBar->setVisible(normal && isDoc);
+   m_statusBar->setVisible(normal);
+diff -ruN a/src/app/ui/main_window.h b/src/app/ui/main_window.h
+--- a/src/app/ui/main_window.h	2026-10-01 20:47:37.000000000 +0000
++++ b/src/app/ui/main_window.h	2026-10-07 15:51:42.862845950 +0000
+@@ -19,6 +19,7 @@
+ namespace app {
+ 
+   class ColorBar;
++  class PanelDock;
+   class TouchBar;
+   class ContextBar;
+   class DevConsoleView;
+@@ -74,6 +75,7 @@
+     void alternateToolbar();
+     void alternateTouchbar();
+     void toggleTouchbar();
++    void togglePanelDock();
+ 
+     void showDataRecovery(crash::DataRecovery* dataRecovery);
+ 
+@@ -103,6 +105,8 @@
+     ContextBar* m_contextBar;
+     StatusBar* m_statusBar;
+     ColorBar* m_colorBar;
++    PanelDock* m_panelDock;
++    bool m_panelDockHidden = false;
+     std::shared_ptr<TouchBar> m_touchBar;
+     ui::Widget* m_toolBar;
+     WorkspaceTabs* m_tabsBar;
+diff -ruN a/src/app/ui/more_panel.cpp b/src/app/ui/more_panel.cpp
+--- a/src/app/ui/more_panel.cpp	1970-01-01 00:00:00.000000000 +0000
++++ b/src/app/ui/more_panel.cpp	2026-10-07 15:51:42.867482930 +0000
+@@ -0,0 +1,282 @@
++// LibreSprite | Panel táctil "Más funciones"
++//
++// This file is released under the terms of the MIT license.
++// Read LICENSE.txt for more information.
++
++#ifdef HAVE_CONFIG_H
++#include "config.h"
++#endif
++
++#include "app/ui/more_panel.h"
++
++#include "app/commands/command.h"
++#include "app/commands/commands.h"
++#include "app/commands/params.h"
++#include "app/ui_context.h"
++#include "ui/box.h"
++#include "ui/button.h"
++#include "ui/grid.h"
++#include "ui/label.h"
++#include "ui/separator.h"
++#include "ui/system.h"
++#include "ui/theme.h"
++#include "ui/view.h"
++#include "ui/window.h"
++
++#include <utility>
++#include <vector>
++
++namespace app {
++
++using namespace ui;
++
++namespace {
++
++  struct Item {
++    const char* label;    // Texto del botón
++    const char* command;  // Nombre del comando (igual que en gui.xml)
++    std::vector<std::pair<const char*, const char*>> params;
++  };
++
++  struct Category {
++    const char* title;
++    std::vector<Item> items;
++  };
++
++  const std::vector<Category>& categories()
++  {
++    static const std::vector<Category> list = {
++      { "Archivo", {
++        { "Nuevo", "NewFile", {} },
++        { "Abrir", "OpenFile", {} },
++        { "Guardar", "SaveFile", {} },
++        { "Guardar como", "SaveFileAs", {} },
++        { "Guardar copia", "SaveFileCopyAs", {} },
++        { "Compartir", "Share", {} },
++        { "Importar spritesheet", "ImportSpriteSheet", {} },
++        { "Exportar spritesheet", "ExportSpriteSheet", {} },
++        { "Repetir exportación", "RepeatLastExport", {} },
++        { "Cerrar", "CloseFile", {} },
++      } },
++      { "Edición", {
++        { "Deshacer", "Undo", {} },
++        { "Rehacer", "Redo", {} },
++        { "Historial", "UndoHistory", {} },
++        { "Cortar", "Cut", {} },
++        { "Copiar", "Copy", {} },
++        { "Copiar combinado", "CopyMerged", {} },
++        { "Pegar", "Paste", {} },
++        { "Pegar texto", "PasteText", {} },
++        { "Borrar", "Clear", {} },
++        { "Rotar 90° der.", "Rotate", { {"target", "mask"}, {"angle", "90"} } },
++        { "Rotar 90° izq.", "Rotate", { {"target", "mask"}, {"angle", "-90"} } },
++        { "Rotar 180°", "Rotate", { {"target", "mask"}, {"angle", "180"} } },
++        { "Voltear horizontal", "Flip", { {"target", "mask"}, {"orientation", "horizontal"} } },
++        { "Voltear vertical", "Flip", { {"target", "mask"}, {"orientation", "vertical"} } },
++        { "Nuevo pincel", "NewBrush", {} },
++        { "Sprite desde selección", "NewSpriteFromSelection", {} },
++        { "Atajos de teclado", "KeyboardShortcuts", {} },
++        { "Opciones", "Options", {} },
++      } },
++      { "Selección", {
++        { "Seleccionar todo", "MaskAll", {} },
++        { "Deseleccionar", "DeselectMask", {} },
++        { "Reseleccionar", "ReselectMask", {} },
++        { "Invertir selección", "InvertMask", {} },
++        { "Seleccionar por color", "MaskByColor", {} },
++        { "Borde", "ModifySelection", { {"modifier", "border"} } },
++        { "Expandir", "ModifySelection", { {"modifier", "expand"} } },
++        { "Contraer", "ModifySelection", { {"modifier", "contract"} } },
++        { "Cargar máscara", "LoadMask", {} },
++        { "Guardar máscara", "SaveMask", {} },
++        { "Mover ←", "MoveMask", { {"target", "content"}, {"direction", "left"}, {"units", "pixel"}, {"quantity", "1"}, {"wrap", "1"} } },
++        { "Mover →", "MoveMask", { {"target", "content"}, {"direction", "right"}, {"units", "pixel"}, {"quantity", "1"}, {"wrap", "1"} } },
++        { "Mover ↑", "MoveMask", { {"target", "content"}, {"direction", "up"}, {"units", "pixel"}, {"quantity", "1"}, {"wrap", "1"} } },
++        { "Mover ↓", "MoveMask", { {"target", "content"}, {"direction", "down"}, {"units", "pixel"}, {"quantity", "1"}, {"wrap", "1"} } },
++      } },
++      { "Filtros (FX)", {
++        { "Reemplazar color", "ReplaceColor", {} },
++        { "Invertir color", "InvertColor", {} },
++        { "Matriz de convolución", "ConvolutionMatrix", {} },
++        { "Curva de color", "ColorCurve", {} },
++        { "Despeckle", "Despeckle", {} },
++      } },
++      { "Paleta", {
++        { "Editor de paleta", "PaletteEditor", {} },
++        { "Tamaño de paleta", "PaletteSize", {} },
++        { "Cargar paleta", "LoadPalette", {} },
++        { "Guardar paleta", "SavePalette", {} },
++        { "Cuantizar colores", "ColorQuantization", {} },
++      } },
++      { "Sprite", {
++        { "Propiedades", "SpriteProperties", {} },
++        { "Modo RGB", "ChangePixelFormat", { {"format", "rgb"} } },
++        { "Modo grises", "ChangePixelFormat", { {"format", "grayscale"} } },
++        { "Modo indexado", "ChangePixelFormat", { {"format", "indexed"} } },
++        { "Indexado + dither", "ChangePixelFormat", { {"format", "indexed"}, {"dithering", "ordered"} } },
++        { "Duplicar sprite", "DuplicateSprite", {} },
++        { "Tamaño del sprite", "SpriteSize", {} },
++        { "Tamaño del lienzo", "CanvasSize", {} },
++        { "Rotar lienzo 90° der.", "Rotate", { {"target", "canvas"}, {"angle", "90"} } },
++        { "Rotar lienzo 90° izq.", "Rotate", { {"target", "canvas"}, {"angle", "-90"} } },
++        { "Rotar lienzo 180°", "Rotate", { {"target", "canvas"}, {"angle", "180"} } },
++        { "Voltear lienzo H", "Flip", { {"target", "canvas"}, {"orientation", "horizontal"} } },
++        { "Voltear lienzo V", "Flip", { {"target", "canvas"}, {"orientation", "vertical"} } },
++        { "Recortar", "CropSprite", {} },
++        { "Autorrecortar", "AutocropSprite", {} },
++      } },
++      { "Capas", {
++        { "Propiedades", "LayerProperties", {} },
++        { "Visibilidad", "LayerVisibility", {} },
++        { "Nueva capa", "NewLayer", {} },
++        { "Eliminar capa", "RemoveLayer", {} },
++        { "Duplicar capa", "DuplicateLayer", {} },
++        { "Combinar abajo", "MergeDownLayer", {} },
++        { "Aplanar", "FlattenLayers", {} },
++        { "Fondo desde capa", "BackgroundFromLayer", {} },
++        { "Capa desde fondo", "LayerFromBackground", {} },
++      } },
++      { "Animación", {
++        { "Nuevo fotograma", "NewFrame", {} },
++        { "Fotograma vacío", "NewFrame", { {"content", "empty"} } },
++        { "Duplicar celdas", "NewFrame", { {"content", "celblock"} } },
++        { "Duplicar celdas enlazadas", "NewFrame", { {"content", "cel"} } },
++        { "Eliminar fotograma", "RemoveFrame", {} },
++        { "Propiedades fotograma", "FrameProperties", {} },
++        { "Propiedades celda", "CelProperties", {} },
++        { "Enlazar celdas", "LinkCels", {} },
++        { "Desenlazar celda", "UnlinkCel", {} },
++        { "Limpiar celda", "ClearCel", {} },
++        { "Nueva etiqueta", "NewFrameTag", {} },
++        { "Propiedades etiqueta", "FrameTagProperties", {} },
++        { "Eliminar etiqueta", "RemoveFrameTag", {} },
++        { "|◀ Primero", "GotoFirstFrame", {} },
++        { "◀ Anterior", "GotoPreviousFrame", {} },
++        { "Siguiente ▶", "GotoNextFrame", {} },
++        { "Último ▶|", "GotoLastFrame", {} },
++        { "Ir a fotograma", "GotoFrame", {} },
++        { "Reproducir", "PlayAnimation", {} },
++        { "Invertir orden", "ReverseFrames", {} },
++        { "Sección de bucle", "SetLoopSection", {} },
++        { "Papel cebolla", "ShowOnionSkin", {} },
++      } },
++      { "Dibujo y vista", {
++        { "Pixel perfect", "PixelPerfectMode", {} },
++        { "Simetría", "SymmetryMode", {} },
++        { "Centrar simetría", "ResetSymmetry", { {"target", "center"} } },
++        { "Simetría al centro de la vista", "ResetSymmetry", { {"target", "view"} } },
++        { "Mosaico: ninguno", "TiledMode", { {"axis", "none"} } },
++        { "Mosaico: ambos ejes", "TiledMode", { {"axis", "both"} } },
++        { "Mosaico: eje X", "TiledMode", { {"axis", "x"} } },
++        { "Mosaico: eje Y", "TiledMode", { {"axis", "y"} } },
++        { "Cuadrícula", "ShowGrid", {} },
++        { "Cuadrícula de píxeles", "ShowPixelGrid", {} },
++        { "Ajustes de cuadrícula", "GridSettings", {} },
++        { "Selección como cuadrícula", "SelectionAsGrid", {} },
++        { "Imán a cuadrícula", "SnapToGrid", {} },
++        { "Bordes de capa", "ShowLayerEdges", {} },
++        { "Bordes de selección", "ShowSelectionEdges", {} },
++        { "Vista previa del pincel", "ShowBrushPreview", {} },
++        { "Extras", "ShowExtras", {} },
++        { "Vista previa", "TogglePreview", {} },
++        { "Vista previa completa", "FullscreenPreview", {} },
++        { "Pantalla completa", "ToggleFullscreen", {} },
++        { "Duplicar vista", "DuplicateView", {} },
++        { "Línea de tiempo", "Timeline", {} },
++        { "Mover línea de tiempo", "AlternateTimeline", {} },
++        { "Panel lateral", "TogglePanelDock", {} },
++        { "Barra táctil", "ToggleTouchbar", {} },
++        { "Mover barra táctil", "AlternateTouchbar", {} },
++        { "Mover barra de herramientas", "AlternateToolbar", {} },
++      } },
++      { "Scripts y ayuda", {
++        { "Consola de desarrollo", "DeveloperConsole", {} },
++        { "Carpeta de scripts", "OpenScriptsFolder", {} },
++        { "Reescanear scripts", "RescanScripts", {} },
++        { "Inicio", "Home", {} },
++        { "Acerca de", "About", {} },
++      } },
++    };
++    return list;
++  }
++
++  class MorePanel : public Window {
++  public:
++    MorePanel()
++      : Window(WithTitleBar, "Más funciones")
++      , m_pending(nullptr)
++    {
++      const int scale = guiscale();
++      const int columns = 3;
++
++      // Contenido desplazable con todas las categorías.
++      auto* content = new VBox();
++      for (const Category& category : categories()) {
++        content->addChild(new Separator(category.title, HORIZONTAL));
++
++        auto* grid = new Grid(columns, true);
++        grid->setExpansive(true);
++        int index = 0;
++        for (const Item& item : category.items) {
++          auto* button = new Button(item.label);
++          button->setMinSize(gfx::Size(36 * scale, 14 * scale));
++          button->Click.connect([this, &item](Event&) {
++            // Se ejecuta cuando el panel ya se cerró (ver show_more_panel)
++            // para que los diálogos de cada comando abran encima del editor.
++            m_pending = &item;
++            closeWindow(this);
++          });
++          grid->addChildInCell(button, 1, 1, HORIZONTAL | VERTICAL);
++          ++index;
++        }
++        content->addChild(grid);
++      }
++
++      auto* view = new View();
++      view->attachToView(content);
++      view->setExpansive(true);
++      // Ocupa la mayor parte de la pantalla (en un teléfono, casi toda).
++      view->setSizeHint(gfx::Size(display_w() * 9 / 10, display_h() * 8 / 10));
++
++      auto* closeButton = new Button("Cerrar");
++      closeButton->setMinSize(gfx::Size(36 * scale, 14 * scale));
++      closeButton->Click.connect([this](Event&) { closeWindow(this); });
++
++      auto* root = new VBox();
++      root->addChild(view);
++      root->addChild(closeButton);
++      addChild(root);
++    }
++
++    const Item* pending() const { return m_pending; }
++
++  private:
++    const Item* m_pending;
++  };
++
++} // anonymous namespace
++
++void show_more_panel()
++{
++  const Item* chosen = nullptr;
++  {
++    MorePanel panel;
++    panel.openWindowInForeground();
++    chosen = panel.pending();
++  }
++
++  if (!chosen)
++    return;
++
++  Command* command = CommandsModule::instance()->getCommandByName(chosen->command);
++  if (!command)
++    return;
++
++  Params params;
++  for (const auto& p : chosen->params)
++    params.set(p.first, p.second);
++
++  UIContext::instance()->executeCommand(command, params);
++}
++
++} // namespace app
+diff -ruN a/src/app/ui/more_panel.h b/src/app/ui/more_panel.h
+--- a/src/app/ui/more_panel.h	1970-01-01 00:00:00.000000000 +0000
++++ b/src/app/ui/more_panel.h	2026-10-07 15:51:42.867468931 +0000
+@@ -0,0 +1,16 @@
++// LibreSprite | Panel táctil "Más funciones"
++//
++// This file is released under the terms of the MIT license.
++// Read LICENSE.txt for more information.
++
++#pragma once
++
++namespace app {
++
++  // Abre un panel con botones grandes que agrupa, por categoría, las
++  // funciones de LibreSprite que normalmente viven en los menús
++  // (archivo, edición, selección, filtros, sprite, capas, animación,
++  // vista, paleta y scripts). Pensado para usarse con el dedo.
++  void show_more_panel();
++
++}
+diff -ruN a/src/app/ui/panel_dock.cpp b/src/app/ui/panel_dock.cpp
+--- a/src/app/ui/panel_dock.cpp	1970-01-01 00:00:00.000000000 +0000
++++ b/src/app/ui/panel_dock.cpp	2026-10-07 15:51:42.867675375 +0000
+@@ -0,0 +1,75 @@
++// LibreSprite | Panel con pestañas (paleta, galería, referencia...)
++//
++// This file is released under the terms of the MIT license.
++// Read LICENSE.txt for more information.
++
++#ifdef HAVE_CONFIG_H
++#include "config.h"
++#endif
++
++#include "app/ui/panel_dock.h"
++
++namespace app {
++
++class PanelDock::PanelTab : public TabView {
++public:
++  PanelTab(const std::string& text, ui::Widget* widget)
++    : text(text), widget(widget) { }
++
++  std::string getTabText() override { return text; }
++  TabIcon getTabIcon() override { return TabIcon::NONE; }
++
++  std::string text;
++  ui::Widget* widget;
++};
++
++PanelDock::PanelDock()
++  : ui::Box(ui::VERTICAL)
++  , m_tabs(new Tabs(this))
++{
++  m_tabs->setDockedStyle();
++  addChild(m_tabs);
++}
++
++PanelDock::~PanelDock()
++{
++  // m_tabs y los paneles son hijos de este widget: ui::Widget los destruye.
++}
++
++void PanelDock::addPanel(const std::string& title, ui::Widget* panel)
++{
++  const bool first = m_panels.empty();
++
++  std::unique_ptr<PanelTab> tab(new PanelTab(title, panel));
++  addChild(panel);
++  panel->setVisible(first);
++
++  m_tabs->addTab(tab.get(), false);
++  if (first)
++    m_tabs->selectTab(tab.get());
++
++  m_panels.push_back(std::move(tab));
++}
++
++void PanelDock::selectPanel(int index)
++{
++  if (index < 0 || index >= int(m_panels.size()))
++    return;
++  m_tabs->selectTab(m_panels[index].get());
++}
++
++void PanelDock::onSelectTab(Tabs*, TabView* tabView)
++{
++  showPanelFor(tabView);
++}
++
++void PanelDock::showPanelFor(TabView* tabView)
++{
++  for (auto& tab : m_panels)
++    tab->widget->setVisible(tab.get() == tabView);
++
++  if (parent())
++    layout();
++}
++
++} // namespace app
+diff -ruN a/src/app/ui/panel_dock.h b/src/app/ui/panel_dock.h
+--- a/src/app/ui/panel_dock.h	1970-01-01 00:00:00.000000000 +0000
++++ b/src/app/ui/panel_dock.h	2026-10-07 15:51:42.867587687 +0000
+@@ -0,0 +1,59 @@
++// LibreSprite | Panel con pestañas (paleta, galería, referencia...)
++//
++// This file is released under the terms of the MIT license.
++// Read LICENSE.txt for more information.
++
++#pragma once
++
++#include "app/ui/tabs.h"
++#include "ui/box.h"
++
++#include <memory>
++#include <string>
++#include <vector>
++
++namespace app {
++
++  // Contenedor con una barra de pestañas arriba y un solo panel visible
++  // abajo. Las pestañas se pueden reordenar arrastrándolas (reutiliza el
++  // widget Tabs de las pestañas de documentos).
++  class PanelDock : public ui::Box
++                  , public TabsDelegate {
++  public:
++    PanelDock();
++    ~PanelDock();
++
++    // Agrega "panel" como una pestaña nueva. El dock pasa a ser su
++    // padre (y por lo tanto quien lo destruye).
++    void addPanel(const std::string& title, ui::Widget* panel);
++
++    // Muestra el panel de la pestaña "index" (en orden de creación).
++    void selectPanel(int index);
++
++  private:
++    class PanelTab;
++
++    void showPanelFor(TabView* tabView);
++
++    // TabsDelegate
++    bool isTabModified(Tabs*, TabView*) override { return false; }
++    bool canCloneTab(Tabs*, TabView*) override { return false; }
++    void onSelectTab(Tabs*, TabView* tabView) override;
++    void onCloseTab(Tabs*, TabView*) override { }
++    void onCloneTab(Tabs*, TabView*, int) override { }
++    void onContextMenuTab(Tabs*, TabView*) override { }
++    void onMouseOverTab(Tabs*, TabView*) override { }
++    DropViewPreviewResult onFloatingTab(Tabs*, TabView*, const gfx::Point&) override {
++      // La pestaña no sale de la barra: solo se reordena dentro de ella.
++      return DropViewPreviewResult::DROP_IN_TABS;
++    }
++    void onDockingTab(Tabs*, TabView*) override { }
++    DropTabResult onDropTab(Tabs*, TabView*, const gfx::Point&, bool) override {
++      return DropTabResult::NOT_HANDLED;
++    }
++
++    Tabs* m_tabs;
++    std::vector<std::unique_ptr<PanelTab>> m_panels;
++  };
++
++}
+diff -ruN a/src/app/ui/reference_panel.cpp b/src/app/ui/reference_panel.cpp
+--- a/src/app/ui/reference_panel.cpp	1970-01-01 00:00:00.000000000 +0000
++++ b/src/app/ui/reference_panel.cpp	2026-10-07 15:51:42.867937610 +0000
+@@ -0,0 +1,191 @@
++// LibreSprite | Panel de imagen de referencia
++//
++// This file is released under the terms of the MIT license.
++// Read LICENSE.txt for more information.
++
++#ifdef HAVE_CONFIG_H
++#include "config.h"
++#endif
++
++#include "app/ui/reference_panel.h"
++
++#include "app/file_selector.h"
++#include "gfx/color.h"
++#include "she/surface.h"
++#include "she/system.h"
++#include "ui/box.h"
++#include "ui/button.h"
++#include "ui/graphics.h"
++#include "ui/paint_event.h"
++#include "ui/size_hint_event.h"
++#include "ui/theme.h"
++#include "ui/view.h"
++#include "ui/widget.h"
++
++#include <algorithm>
++
++namespace app {
++
++using namespace ui;
++
++namespace {
++  const int kZoomSteps[] = { 10, 25, 50, 75, 100, 150, 200, 300, 400, 800 };
++  const int kZoomStepCount = sizeof(kZoomSteps) / sizeof(kZoomSteps[0]);
++  const int kMaxPixels = 16 * 1024 * 1024; // límite de memoria de la copia escalada
++
++  // Copia con escala "vecino más cercano" (ideal para pixel art).
++  she::Surface* scaleNearest(she::Surface* src, int percent)
++  {
++    int w = std::max(1, src->width() * percent / 100);
++    int h = std::max(1, src->height() * percent / 100);
++    if (w * h > kMaxPixels)
++      return nullptr;
++
++    she::Surface* dst = she::instance()->createRgbaSurface(w, h);
++    if (!dst)
++      return nullptr;
++
++    src->lock();
++    dst->lock();
++    for (int y=0; y<h; ++y) {
++      const int sy = std::min(src->height()-1, y * 100 / percent);
++      for (int x=0; x<w; ++x) {
++        const int sx = std::min(src->width()-1, x * 100 / percent);
++        dst->putPixel(src->getPixel(sx, sy), x, y);
++      }
++    }
++    dst->unlock();
++    src->unlock();
++    return dst;
++  }
++}
++
++class ReferencePanel::ImageWidget : public ui::Widget {
++public:
++  ImageWidget() : m_surface(nullptr) { }
++  ~ImageWidget() { setSurface(nullptr); }
++
++  // Toma posesión de la superficie.
++  void setSurface(she::Surface* surface) {
++    if (m_surface)
++      m_surface->dispose();
++    m_surface = surface;
++  }
++
++protected:
++  void onSizeHint(SizeHintEvent& ev) override {
++    if (m_surface)
++      ev.setSizeHint(gfx::Size(m_surface->width(), m_surface->height()));
++    else
++      ev.setSizeHint(gfx::Size(1, 1));
++  }
++
++  void onPaint(PaintEvent& ev) override {
++    Graphics* g = ev.graphics();
++    g->fillRect(gfx::rgba(48, 48, 48), clientBounds());
++    if (m_surface)
++      g->drawRgbaSurface(m_surface, 0, 0);
++  }
++
++private:
++  she::Surface* m_surface;
++};
++
++ReferencePanel::ReferencePanel()
++  : m_view(new View())
++  , m_image(new ImageWidget())
++  , m_source(nullptr)
++  , m_percent(100)
++{
++  const int scale = guiscale();
++  auto makeButton = [scale](const char* text) {
++    auto* button = new Button(text);
++    button->setMinSize(gfx::Size(18 * scale, 12 * scale));
++    return button;
++  };
++
++  auto* bar = new HBox();
++  auto* open = makeButton("Abrir");
++  auto* zoomOut = makeButton("-");
++  auto* zoomIn = makeButton("+");
++  auto* fit = makeButton("Ajustar");
++  open->Click.connect([this](Event&) { openImage(); });
++  zoomOut->Click.connect([this](Event&) { zoomStep(-1); });
++  zoomIn->Click.connect([this](Event&) { zoomStep(+1); });
++  fit->Click.connect([this](Event&) { fitToWidth(); });
++  bar->addChild(open);
++  bar->addChild(zoomOut);
++  bar->addChild(zoomIn);
++  bar->addChild(fit);
++
++  m_view->attachToView(m_image);
++  m_view->setExpansive(true);
++
++  addChild(bar);
++  addChild(m_view);
++  setExpansive(true);
++}
++
++ReferencePanel::~ReferencePanel()
++{
++  if (m_source)
++    m_source->dispose();
++}
++
++void ReferencePanel::openImage()
++{
++  std::string filename = show_file_selector(
++    "Imagen de referencia", "", "png,jpg,jpeg,gif,bmp", FileSelectorType::Open);
++  if (filename.empty())
++    return;
++
++  she::Surface* loaded = she::instance()->loadRgbaSurface(filename.c_str());
++  if (!loaded)
++    return;
++
++  if (m_source)
++    m_source->dispose();
++  m_source = loaded;
++  fitToWidth();
++}
++
++void ReferencePanel::zoomStep(int direction)
++{
++  if (!m_source)
++    return;
++
++  int index = 0;
++  for (int i=0; i<kZoomStepCount; ++i)
++    if (kZoomSteps[i] <= m_percent)
++      index = i;
++  index = std::max(0, std::min(kZoomStepCount-1, index + direction));
++  applyZoom(kZoomSteps[index]);
++}
++
++void ReferencePanel::fitToWidth()
++{
++  if (!m_source)
++    return;
++
++  const int available = m_view->visibleSize().w;
++  int percent = (available > 0 ? available * 100 / m_source->width() : 100);
++  applyZoom(std::max(5, std::min(800, percent)));
++}
++
++void ReferencePanel::applyZoom(int percent)
++{
++  if (!m_source)
++    return;
++
++  she::Surface* scaled = scaleNearest(m_source, percent);
++  if (!scaled)
++    return; // demasiado grande: se conserva el zoom anterior
++
++  m_percent = percent;
++  m_image->setSurface(scaled);
++  m_view->updateView();
++  m_view->layout();
++  m_image->invalidate();
++}
++
++} // namespace app
+diff -ruN a/src/app/ui/reference_panel.h b/src/app/ui/reference_panel.h
+--- a/src/app/ui/reference_panel.h	1970-01-01 00:00:00.000000000 +0000
++++ b/src/app/ui/reference_panel.h	2026-10-07 15:51:42.867812640 +0000
+@@ -0,0 +1,36 @@
++// LibreSprite | Panel de imagen de referencia
++//
++// This file is released under the terms of the MIT license.
++// Read LICENSE.txt for more information.
++
++#pragma once
++
++#include "ui/box.h"
++
++namespace she { class Surface; }
++namespace ui { class Button; class View; }
++
++namespace app {
++
++  // Muestra una imagen (png, jpg, gif, bmp) para dibujar mirándola.
++  // Botones: Abrir, alejar (-), acercar (+) y Ajustar al ancho.
++  class ReferencePanel : public ui::VBox {
++  public:
++    ReferencePanel();
++    ~ReferencePanel();
++
++  private:
++    class ImageWidget;
++
++    void openImage();
++    void zoomStep(int direction);
++    void fitToWidth();
++    void applyZoom(int percent);
++
++    ui::View* m_view;
++    ImageWidget* m_image;
++    she::Surface* m_source;
++    int m_percent;
++  };
++
++}
+diff -ruN a/src/app/ui/touch_bar.cpp b/src/app/ui/touch_bar.cpp
+--- a/src/app/ui/touch_bar.cpp	2026-10-01 20:47:37.000000000 +0000
++++ b/src/app/ui/touch_bar.cpp	2026-10-07 15:51:42.866720465 +0000
+@@ -1,6 +1,9 @@
+ #include "touch_bar.h"
++#include "app/app.h"
+ #include "app/pref/preferences.h"
+ #include "app/ui/skin/skin_theme.h"
++#include "app/ui/main_window.h"
++#include "app/ui/more_panel.h"
+ #include "app/ui/toolbar.h"
+ #include "app/ui_context.h"
+ #include "gfx/color.h"
+@@ -71,6 +74,17 @@
+   setBorder({ui::guiscale(), 0, ui::guiscale(), 0});
+   auto theme = static_cast<skin::SkinTheme*>(this->theme());
+   setBgColor(theme->colors.tabActiveFace());
++
++  // Botón fijo "Más": abre el panel con todas las funciones de los menús.
++  m_more = new ui::Button("Más");
++  addChild(m_more);
++  m_more->Click.connect([](auto&){ show_more_panel(); });
++
++  // Botón fijo "Panel": oculta o muestra el panel lateral (paleta, galería,
++  // referencia) para dejar todo el ancho al lienzo.
++  m_panel = new ui::Button("Panel");
++  addChild(m_panel);
++  m_panel->Click.connect([](auto&){ App::instance()->mainWindow()->togglePanelDock(); });
+   for (auto& touch : touches)
+     m_touches[touch.first] = std::make_shared<Touch>(*this, touch.first);
+   internalOrganize();
+@@ -120,6 +134,13 @@
+   int w{};
+   int h{};
+ 
++  for (ui::Button* fixed : {m_more, m_panel}) {
++    if (!fixed)
++      continue;
++    w = std::max(w, fixed->textWidth() * ui::guiscale() + fixed->border().width() * 2);
++    h = std::max(h, fixed->textHeight() * ui::guiscale() + fixed->border().height() * 2);
++  }
++
+   for (auto& entry : touches) {
+     auto& button = *m_touches[entry.first]->button;
+     w = std::max(w, button.textWidth() * ui::guiscale() + button.border().width() * 2);
+@@ -128,6 +149,11 @@
+     removeChild(&button);
+   }
+ 
++  if (m_more)
++    m_more->setBounds({0, i++ * h, w, h});
++  if (m_panel)
++    m_panel->setBounds({0, i++ * h, w, h});
++
+   for (auto& entry : touches) {
+     auto& button = *m_touches[entry.first]->button;
+     addChild(&button);
+diff -ruN a/src/app/ui/touch_bar.h b/src/app/ui/touch_bar.h
+--- a/src/app/ui/touch_bar.h	2026-10-01 20:47:37.000000000 +0000
++++ b/src/app/ui/touch_bar.h	2026-10-07 15:51:42.866735298 +0000
+@@ -4,6 +4,7 @@
+ #include "app/commands/params.h"
+ #include "app/ui/keyboard_shortcuts.h"
+ #include "ui/box.h"
++#include "ui/button.h"
+ #include <memory>
+ #include <unordered_map>
+ 
+@@ -11,6 +12,8 @@
+   class Touch;
+   class TouchBar : public ui::Box {
+     std::unordered_map<std::string, std::shared_ptr<Touch>> m_touches;
++    ui::Button* m_more = nullptr;  // abre el panel "Más funciones"
++    ui::Button* m_panel = nullptr; // muestra/oculta el panel lateral
+ 
+   public:
+     static void removeTouch(const std::string &label);
